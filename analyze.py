@@ -4,6 +4,7 @@ from collections import Counter
 import sys
 
 import os
+from operator import itemgetter
 
 log_file_dir = "/home/thomas/Documents/Dev/logs/hnaccesslogs/access.log.1"
 
@@ -24,10 +25,10 @@ def add_bot_to_list(useragent):
 
 def print_bot_list():
     global bot_list
-    freq_dict = dict(Counter(bot_list))
+    freq_dict = Counter(bot_list).most_common()
 
     print("{:<8} {:<15}".format("Freq", "Useragent"))
-    for useragent, freq in freq_dict.items():
+    for useragent, freq in freq_dict:
         print("{:<8} {:<15}".format(freq, useragent))
 
 
