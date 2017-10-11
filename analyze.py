@@ -1,6 +1,8 @@
 import ast
 from collections import Counter
 
+import sys
+
 log_file_dir = "/home/thomas/Documents/Dev/logs/hnaccesslogs/access.log.1"
 
 count_bots = 0
@@ -32,17 +34,24 @@ def do_something_with_line(line):
         add_bot_to_list(line["user_agent"])
         count_bot()
 
-# Open log file in 'read' mode
-with open(log_file_dir, "r") as in_file:
-    # Loop over each log line
-    for string_line in in_file:
-        line = ast.literal_eval(string_line)
-        do_something_with_line(line)
-        total_lines += 1
 
-print("==============>", count_bots, "bots")
-print("==============>", total_lines, "total")
-print("==============>", str((count_bots/total_lines) * 100.0) + "%", "is bot")
+# ============ START SCRIPT =============
+
+for arg in sys.argv[1:]:
+    # Open log file in 'read' mode
+    with open(arg, "r") as in_file:
+        # Loop over each log line
+        for string_line in in_file:
+            line = ast.literal_eval(string_line)
+            do_something_with_line(line)
+            total_lines += 1
+
+# ============ PRINT STATS =============
+
+print("")
+percentage = (float(42140)/float(90457)) * 100.00
+one_string = str(count_bots) + " bots\n" + str(total_lines) + " total\n" + str(percentage)+"%" + " is bot\n"
+print(one_string)
 
 print_bot_list()
 
