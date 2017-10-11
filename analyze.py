@@ -69,8 +69,7 @@ for arg in sys.argv[1:]:
         read_from_dir(arg)
     elif os.path.isfile(arg):
         read_from_file(arg)
-
-
+        print("Done reading single file "+arg)
 
 
 # ============ PRINT STATS =============
