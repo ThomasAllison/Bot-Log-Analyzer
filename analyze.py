@@ -32,14 +32,15 @@ def print_bot_list(list):
         print("{:<8} {:<15}".format(freq, useragent))
 
 
-def write_bot_list(file, list, title="List"):
+def write_bot_list(file, list, title="List", minimum=0):
     file.write("\n====================  {}  =================\n\n".format(title))
 
     freq_list = Counter(list).most_common()
 
     file.write("{:<8} {:<15}\n".format("Freq", "Useragent"))
     for useragent, freq in freq_list:
-        file.write("{:<8} {:<15}\n".format(freq, useragent))
+        if freq > minimum:
+            file.write("{:<8} {:<15}\n".format(freq, useragent))
 
 def write_stats(file):
     file.write("\n====================  {}  =================\n\n".format("Stats"))
@@ -83,11 +84,34 @@ def read_from_dir(directory):
     total = len(os.listdir(directory))
     for filename in os.listdir(directory):
         path_to_file = directory + filename
-        read_from_file(path_to_file)
 
-        count += 1
-        one_string = "Done reading with {} of {} ".format(count, total) + path_to_file
+        if os.path.isdir(path_to_file):
+            one_string = "\nStart reading files from {}".format(path_to_file)
+            print(one_string)
+            read_from_dir(path_to_file + "/")
+
+        else:
+            read_from_file(path_to_file)
+
+            count += 1
+            one_string = "Done reading with {} of {} ".format(count, total) + path_to_file
+            print(one_string)
+
+
+def walk_dir(directory):
+    for root, dirs, files in os.walk(directory):
+        one_string = "\nStart reading files from {}".format(root)
         print(one_string)
+
+        count = 0
+        total = len(files)
+        for file in files:
+            path_to_file = os.path.join(root, file)
+            read_from_file(path_to_file)
+
+            count += 1
+            one_string = "- Done reading with {0:0>2} of {1:0>2} ".format(count, total) + path_to_file
+            print(one_string)
 
 
 def read_from_file(file):
@@ -106,7 +130,7 @@ def read_from_file(file):
 
 for arg in sys.argv[1:]:
     if os.path.isdir(arg):
-        read_from_dir(arg)
+        walk_dir(arg)
     elif os.path.isfile(arg):
         read_from_file(arg)
         print("Done reading single file "+arg)
@@ -120,13 +144,14 @@ one_string = str(count_bots) + " bots\n" + str(total_lines) + " total\n" + str(p
 print(one_string)
 
 print_bot_list(bot_list)
-print("\n====================================================================\n")
-print_bot_list(legit_list)
+# print("\n====================================================================\n")
+# print_bot_list(legit_list)
+
 
 # ============ WRITE STATS =============
 f = open("loganalysis.txt", "w+")
 write_stats(f)
 write_bot_list(f, bot_list, title="Bot List")
-write_bot_list(f, legit_list, title="Legit List")
+write_bot_list(f, legit_list, title="Legit List", minimum=10)
 
 
