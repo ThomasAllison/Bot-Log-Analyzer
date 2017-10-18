@@ -1,16 +1,17 @@
 import ast
 from collections import Counter
-
 import sys
-
 import os
-from operator import itemgetter
+import re
 
-log_file_dir = "/home/thomas/Documents/Dev/logs/hnaccesslogs/access.log.1"
+# log_file_dir = "/home/thomas/Documents/Dev/logs/hnaccesslogs/access.log.1"
+filters = ["bot", "magereport", "facebook", "crawler", "slurp", "tws", "spider", "scan"]
 
 count_bots = 0
-bot_list = []
 total_lines = 0
+
+bot_list = []
+legit_list = []
 
 
 def count_bot():
@@ -23,19 +24,58 @@ def add_bot_to_list(useragent):
     bot_list.append(useragent)
 
 
-def print_bot_list():
-    global bot_list
-    freq_dict = Counter(bot_list).most_common()
+def print_bot_list(list):
+    freq_list = Counter(list).most_common()
 
     print("{:<8} {:<15}".format("Freq", "Useragent"))
-    for useragent, freq in freq_dict:
+    for useragent, freq in freq_list:
         print("{:<8} {:<15}".format(freq, useragent))
 
 
+def write_bot_list(file, list, title="List"):
+    file.write("\n====================  {}  =================\n\n".format(title))
+
+    freq_list = Counter(list).most_common()
+
+    file.write("{:<8} {:<15}\n".format("Freq", "Useragent"))
+    for useragent, freq in freq_list:
+        file.write("{:<8} {:<15}\n".format(freq, useragent))
+
+def write_stats(file):
+    file.write("\n====================  {}  =================\n\n".format("Stats"))
+
+    percentage = (float(count_bots) / float(total_lines)) * 100.00
+    one_string = str(count_bots) + " bots\n" + str(total_lines) + " total\n" + str(percentage) + "%" + " is bot\n"
+    file.write(one_string)
+
+
 def do_something_with_line(line):
-    if "bot" in line["user_agent"]:
-        add_bot_to_list(line["user_agent"])
-        count_bot()
+    if is_bot(line):
+        useragent_contains_bot(line)
+    else:
+        legit_list.append(line["user_agent"])
+
+
+def is_bot(line):
+    useragent = line["user_agent"]
+    urls_in_useragent = re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', useragent)
+    email_in_useragent = re.findall('[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', useragent)
+
+    if any(n in useragent.lower() for n in filters):
+        return True
+    elif useragent is "-":
+        return True
+    elif useragent is "":
+        return True
+    elif urls_in_useragent:
+        return True
+    if email_in_useragent:
+        return True
+
+
+def useragent_contains_bot(line):
+    add_bot_to_list(line["user_agent"])
+    count_bot()
 
 
 def read_from_dir(directory):
@@ -79,5 +119,14 @@ percentage = (float(count_bots)/float(total_lines)) * 100.00
 one_string = str(count_bots) + " bots\n" + str(total_lines) + " total\n" + str(percentage)+"%" + " is bot\n"
 print(one_string)
 
-print_bot_list()
+print_bot_list(bot_list)
+print("\n====================================================================\n")
+print_bot_list(legit_list)
+
+# ============ WRITE STATS =============
+f = open("loganalysis.txt", "w+")
+write_stats(f)
+write_bot_list(f, bot_list, title="Bot List")
+write_bot_list(f, legit_list, title="Legit List")
+
 
