@@ -4,7 +4,7 @@ import sys
 import os
 import re
 
-log_file_dir = "/home/thomas/Documents/Dev/logs/hnaccesslogs/access.log.1"
+# log_file_dir = "/home/thomas/Documents/Dev/logs/hnaccesslogs/access.log.1"
 filters = ["bot", "magereport", "facebook", "crawler", "slurp", "tws", "spider", "scan"]
 
 count_bots = 0
@@ -30,6 +30,23 @@ def print_bot_list(list):
     print("{:<8} {:<15}".format("Freq", "Useragent"))
     for useragent, freq in freq_list:
         print("{:<8} {:<15}".format(freq, useragent))
+
+
+def write_bot_list(file, list, title="List"):
+    file.write("\n====================  {}  =================\n\n".format(title))
+
+    freq_list = Counter(list).most_common()
+
+    file.write("{:<8} {:<15}\n".format("Freq", "Useragent"))
+    for useragent, freq in freq_list:
+        file.write("{:<8} {:<15}\n".format(freq, useragent))
+
+def write_stats(file):
+    file.write("\n====================  {}  =================\n\n".format("Stats"))
+
+    percentage = (float(count_bots) / float(total_lines)) * 100.00
+    one_string = str(count_bots) + " bots\n" + str(total_lines) + " total\n" + str(percentage) + "%" + " is bot\n"
+    file.write(one_string)
 
 
 def do_something_with_line(line):
@@ -104,5 +121,12 @@ print(one_string)
 
 print_bot_list(bot_list)
 print("\n====================================================================\n")
-# print_bot_list(legit_list)
+print_bot_list(legit_list)
+
+# ============ WRITE STATS =============
+f = open("loganalysis.txt", "w+")
+write_stats(f)
+write_bot_list(f, bot_list, title="Bot List")
+write_bot_list(f, legit_list, title="Legit List")
+
 
