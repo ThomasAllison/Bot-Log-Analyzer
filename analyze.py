@@ -59,6 +59,10 @@ def do_something_with_useragent_string(line):
         legit_list.append(line)
 
 
+email_re = re.compile('[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+')
+useragent_re = re.compile('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
+
+
 def is_bot(line):
     if line in filters_string:
         return True
@@ -67,15 +71,11 @@ def is_bot(line):
     elif line is "":
         return True
 
-    email_in_useragent = re.findall('[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', line)
-    if email_in_useragent:
+    has_email = email_re.search(line)
+    if has_email:
         return True
 
-    urls_in_useragent = re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', line)
-    if urls_in_useragent:
-        return True
-
-    return False
+    return useragent_re.search(line)
 
 
 def useragent_contains_bot(line):
