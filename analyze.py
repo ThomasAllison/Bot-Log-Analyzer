@@ -1,23 +1,14 @@
 from collections import Counter
 import os
 import re
-
 import sys
 
 log_file_dir = "/home/thomas/Documents/Dev/logs/lesslogs/one"
 filters = ["bot", "magereport", "facebook", "crawler", "slurp", "tws", "spider", "scan"]
 filters_string = ' '.join(filters)
 
-count_bots = 0
-total_lines = 0
-
 bot_list = []
 legit_list = []
-
-
-def count_bot():
-    global count_bots
-    count_bots += 1
 
 
 def add_bot_to_list(useragent):
@@ -26,29 +17,37 @@ def add_bot_to_list(useragent):
 
 
 def print_bot_list(list):
-    freq_list = Counter(list).most_common()
-
     print("{:<8} {:<15}".format("Freq", "Useragent"))
-    for useragent, freq in freq_list:
+    for useragent, freq in list:
         print("{:<8} {:<15}".format(freq, useragent))
 
 
 def write_bot_list(file, list, title="List", minimum=0):
     file.write("\n====================  {}  =================\n\n".format(title))
 
-    freq_list = Counter(list).most_common()
-
     file.write("{:<8} {:<15}\n".format("Freq", "Useragent"))
-    for useragent, freq in freq_list:
+    for useragent, freq in list:
         if freq > minimum:
             file.write("{:<8} {:<15}\n".format(freq, useragent))
+
+
+def get_amount_of_bots():
+    total = 0
+
+    for useragent, freq in all_bots:
+        total += freq
+
+    return total
 
 
 def write_stats(file):
     file.write("\n====================  {}  =================\n\n".format("Stats"))
 
-    percentage = (float(count_bots) / float(total_lines)) * 100.00
-    one_string = str(count_bots) + " bots\n" + str(total_lines) + " total\n" + str(percentage) + "%" + " is bot\n"
+    amount_bots = get_amount_of_bots()
+    amount_total = len(all_ua_list)
+
+    percentage = (float(amount_bots) / float(amount_total)) * 100.00
+    one_string = str(amount_bots) + " bots\n" + str(amount_total) + " total\n" + str(percentage) + "%" + " is bot\n"
     file.write(one_string)
 
 
@@ -100,14 +99,14 @@ def walk_dir(directory):
 
 
 def read_from_file(file):
+    global all_ua_list
     # Open log file in 'read' mode
     with open(file, "r") as in_file:
-        global total_lines
         # Loop over each log line
         for string_line in in_file:
             line = find_text_between_strings(string_line, '"user_agent":"', '",')
-            do_something_with_useragent_string(line)
-            total_lines += 1
+
+            all_ua_list.append(line)
 
 
 def find_text_between_strings(s, first, last):
@@ -119,7 +118,24 @@ def find_text_between_strings(s, first, last):
         return ""
 
 
+def check_for_bots(all_ua_list):
+    freq_list = Counter(all_ua_list).most_common()
+
+    global all_bots
+    global legit_list
+
+    for useragent in freq_list:
+        if is_bot(useragent[0]):
+            all_bots.append(useragent)
+        else:
+            all_legit.append(useragent)
+
+
 # ============ START SCRIPT =============
+
+all_ua_list = []
+all_bots = []
+all_legit = []
 
 for arg in sys.argv[1:]:
     if os.path.isdir(arg):
@@ -128,21 +144,16 @@ for arg in sys.argv[1:]:
         read_from_file(arg)
         print("Done reading single file " + arg)
 
+check_for_bots(all_ua_list)
 
 # ============ PRINT STATS =============
 
-print("")
-percentage = (float(count_bots) / float(total_lines)) * 100.00
-one_string = str(count_bots) + " bots\n" + str(total_lines) + " total\n" + str(percentage) + "%" + " is bot\n"
-print(one_string)
-#
-# print_bot_list(bot_list)
-# print_bot_list(legit_list)
-
+print_bot_list(all_bots)
+print_bot_list(all_legit)
 
 # ============ WRITE STATS =============
 
 f = open("loganalysis.txt", "w+")
 write_stats(f)
-write_bot_list(f, bot_list, title="Bot List")
-write_bot_list(f, legit_list, title="Legit List", minimum=10)
+write_bot_list(f, all_bots, title="Bot List")
+write_bot_list(f, all_legit, title="Legit List", minimum=10)
