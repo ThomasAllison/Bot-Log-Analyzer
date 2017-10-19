@@ -6,6 +6,7 @@ import sys
 
 log_file_dir = "/home/thomas/Documents/Dev/logs/lesslogs/one"
 filters = ["bot", "magereport", "facebook", "crawler", "slurp", "tws", "spider", "scan"]
+filters_string = ' '.join(filters)
 
 count_bots = 0
 total_lines = 0
@@ -59,7 +60,7 @@ def do_something_with_useragent_string(line):
 
 
 def is_bot(line):
-    if any(n in line.lower() for n in filters):
+    if line in filters_string:
         return True
     elif line is "-":
         return True
@@ -74,29 +75,12 @@ def is_bot(line):
     if urls_in_useragent:
         return True
 
+    return False
+
 
 def useragent_contains_bot(line):
     add_bot_to_list(line)
     count_bot()
-
-
-def read_from_dir(directory):
-    count = 0
-    total = len(os.listdir(directory))
-    for filename in os.listdir(directory):
-        path_to_file = directory + filename
-
-        if os.path.isdir(path_to_file):
-            one_string = "\nStart reading files from {}".format(path_to_file)
-            print(one_string)
-            read_from_dir(path_to_file + "/")
-
-        else:
-            read_from_file(path_to_file)
-
-            count += 1
-            one_string = "Done reading with {} of {}".format(count, total) + path_to_file
-            print(one_string)
 
 
 def walk_dir(directory):
@@ -151,9 +135,9 @@ print("")
 percentage = (float(count_bots) / float(total_lines)) * 100.00
 one_string = str(count_bots) + " bots\n" + str(total_lines) + " total\n" + str(percentage) + "%" + " is bot\n"
 print(one_string)
-
-print_bot_list(bot_list)
-print_bot_list(legit_list)
+#
+# print_bot_list(bot_list)
+# print_bot_list(legit_list)
 
 
 # ============ WRITE STATS =============
