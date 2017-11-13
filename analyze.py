@@ -1,7 +1,8 @@
-from collections import Counter
 import os
 import re
 import sys
+from collections import Counter
+from memory_profiler import profile
 
 log_file_dir = "/home/thomas/Documents/Dev/logs/lesslogs/one"
 filters = ["bot", "magereport", "facebook", "crawler", "slurp", "tws", "spider", "scan"]
@@ -51,13 +52,6 @@ def write_stats(file):
     file.write(one_string)
 
 
-def do_something_with_useragent_string(line):
-    if is_bot(line):
-        useragent_contains_bot(line)
-    else:
-        legit_list.append(line)
-
-
 email_re = re.compile('[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+')
 useragent_re = re.compile('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
 
@@ -76,12 +70,6 @@ def is_bot(line):
 
     return useragent_re.search(line)
 
-
-def useragent_contains_bot(line):
-    add_bot_to_list(line)
-    count_bot()
-
-
 def walk_dir(directory):
     for root, dirs, files in os.walk(directory):
         one_string = "\nStart reading files from {}".format(root)
@@ -97,16 +85,18 @@ def walk_dir(directory):
             one_string = "- Done reading with {0:0>2} of {1:0>2} ".format(count, total) + path_to_file
             print(one_string)
 
-
+fp = open('memory_profiler_basic_mean.log', 'w+')
+@profile(precision=5, stream=fp)
 def read_from_file(file):
     global all_ua_list
     # Open log file in 'read' mode
     with open(file, "r") as in_file:
         # Loop over each log line
-        for string_line in in_file:
-            line = find_text_between_strings(string_line, '"user_agent":"', '",')
+        lines = in_file.readlines()
+        for line in lines:
+            useragent = find_text_between_strings(line, '"user_agent":"', '",')
 
-            all_ua_list.append(line)
+            all_ua_list.append(useragent)
 
 
 def find_text_between_strings(s, first, last):
@@ -148,12 +138,12 @@ check_for_bots(all_ua_list)
 
 # ============ PRINT STATS =============
 
-print_bot_list(all_bots)
-print_bot_list(all_legit)
+# print_bot_list(all_bots)
+# print_bot_list(all_legit)
 
 # ============ WRITE STATS =============
 
 f = open("loganalysis.txt", "w+")
 write_stats(f)
-write_bot_list(f, all_bots, title="Bot List")
-write_bot_list(f, all_legit, title="Legit List", minimum=10)
+write_bot_list(f, all_bots, title="Bot List", minimum=500)
+write_bot_list(f, all_legit, title="Legit List", minimum=1000)
