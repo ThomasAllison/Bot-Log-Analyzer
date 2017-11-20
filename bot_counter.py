@@ -1,7 +1,7 @@
 import operator
 
 
-class BotCounter():
+class BotCounter:
     bots = {}
 
     def add(self, useragent):
