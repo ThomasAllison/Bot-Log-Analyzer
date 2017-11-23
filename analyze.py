@@ -1,154 +1,145 @@
+import logging
 import os
+
 import re
-import sys
 
 from bot_counter import BotCounter
 
-log_file_dir = "/home/thomas/Documents/Dev/logs/lesslogs/one"
-filters = ["bot", "magereport", "facebook", "crawler", "slurp", "tws", "spider", "scan"]
-filters_string = ' '.join(filters)
 
-bot_list = []
-legit_list = []
+class Analyze:
+    verbose = False
+    logger = None
+    output_file = None
+    email_re = re.compile('[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+')
+    useragent_re = re.compile('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
+    filters = ["bot", "magereport", "facebook", "crawler", "slurp", "tws", "spider", "scan"]
+    filters_string = ' '.join(filters)
+    all_useragents = BotCounter()
+    all_bots = []
+    all_legit = []
 
+    def __init__(self, verbose, output_file):
+        self.output_file = output_file
+        self.verbose = verbose
 
-def add_bot_to_list(useragent):
-    global bot_list
-    bot_list.append(useragent)
+        logging.basicConfig(level=logging.INFO, format='%(asctime)-15s: %(message)s')
+        self.logger = logging.getLogger(__name__)
 
+    def analyze_file(self, file):
+        self.read_from_file(file)
+        self.check_for_bots(self.all_useragents.get_sorted_list_by_frequency())
+        self.done()
 
-def print_bot_list(list):
-    print("{:<8} {:<15}".format("Freq", "Useragent"))
-    for useragent, freq in list:
-        print("{:<8} {:<15}".format(freq, useragent))
+    def analyze_directory(self, directory):
+        self.walk_directory(directory)
+        self.check_for_bots(self.all_useragents.get_sorted_list_by_frequency())
+        self.done()
 
+    def walk_directory(self, directory):
+        for root, dirs, files in os.walk(directory):
+            self.logger.info("Start reading files from {}".format(root))
 
-def write_bot_list(file, list, title="List", minimum=0):
-    file.write("\n====================  {}  =================\n\n".format(title))
+            count = 0
+            total = len(files)
+            for file in files:
+                path_to_file = os.path.join(root, file)
+                self.read_from_file(path_to_file)
 
-    file.write("{:<8} {:<15}\n".format("Freq", "Useragent"))
-    for useragent, freq in list:
-        if freq > minimum:
-            file.write("{:<8} {:<15}\n".format(freq, useragent))
+                if self.verbose:
+                    count += 1
+                    self.logger.info("- Done reading with {0:0>2} of {1:0>2} ".format(count, total) + path_to_file)
 
+    def read_from_file(self, file):
+        with open(file, "r") as in_file:
+            lines = in_file.readlines()
+            for line in lines:
+                useragent = self.find_text_between_strings(line, '"user_agent":"', '",')
 
-def get_amount_of_bots():
-    total = 0
-    for useragent, freq in all_bots:
-        total += freq
+                self.all_useragents.add(useragent)
 
-    return total
+    def find_text_between_strings(self, s, first, last):
+        try:
+            start = s.index(first) + len(first)
+            end = s.index(last, start)
+            return s[start:end]
+        except ValueError:
+            return ""
 
+    # checking useragent strings to identify bots
+    def check_for_bots(self, all_useragents):
 
-def get_total_request():
-    total = 0
-    for useragent, freq in all_ua_list.get_sorted_list_by_frequency():
-        total += freq
+        for useragent in all_useragents:
+            if self.is_bot(useragent[0]):
+                self.all_bots.append(useragent)
+            else:
+                self.all_legit.append(useragent)
 
-    return total
+    def is_bot(self, line):
+        if line in self.filters_string:
+            return True
+        elif line is "-":
+            return True
+        elif line is "":
+            return True
 
+        if self.email_re.search(line):
+            return True
 
-def write_stats(file):
-    file.write("\n====================  {}  =================\n\n".format("Stats"))
+        return self.useragent_re.search(line)
 
-    amount_bots = get_amount_of_bots()
-    amount_total = get_total_request()
+    def print_bot_list(self, bots):
+        self.logger.info("\t{:<8} {:<15}".format("Freq", "Useragent"))
 
-    percentage = (float(amount_bots) / float(amount_total)) * 100.00
-    one_string = str(amount_bots) + " bots\n" + str(amount_total) + " total\n" + str(percentage) + "%" + " is bot\n"
-    file.write(one_string)
+        if len(bots) > 10 and not self.verbose:
+            bots = bots[:10]
+        elif len(bots) > 10 and self.verbose:
+            bots = bots[:50]
 
+        for useragent, freq in bots:
+            self.logger.info("\t{:<8} {:<15}".format(freq, useragent))
 
-email_re = re.compile('[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+')
-useragent_re = re.compile('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
+    def print_stats(self):
+        amount_bots = self.get_amount_of_bots()
+        amount_total = self.all_useragents.get_total_amount_of_requests()
 
+        percentage = (float(amount_bots) / float(amount_total)) * 100.00
+        self.logger.info("Total {} request".format(amount_total))
+        self.logger.info("Bots {}".format(amount_bots))
+        self.logger.info("{}% is bot".format(percentage))
 
-def is_bot(line):
-    if line in filters_string:
-        return True
-    elif line is "-":
-        return True
-    elif line is "":
-        return True
+    def get_amount_of_bots(self):
+        total = 0
+        for useragent, freq in self.all_bots:
+            total += freq
 
-    has_email = email_re.search(line)
-    if has_email:
-        return True
+        return total
 
-    return useragent_re.search(line)
+    def write_stats(self, file):
+        amount_bots = self.get_amount_of_bots()
+        amount_total = self.all_useragents.get_total_amount_of_requests()
 
+        percentage = (float(amount_bots) / float(amount_total)) * 100.00
+        one_string = str(amount_bots) + " bots\n" + str(amount_total) + " total\n" + str(percentage) + "%" + " is bot\n"
+        file.write(one_string)
 
-def walk_dir(directory):
-    for root, dirs, files in os.walk(directory):
-        one_string = "\nStart reading files from {}".format(root)
-        print(one_string)
+    def write_bot_list(self, file, list, minimum=0):
+        file.write("{:<8} {:<15}\n".format("Freq", "Useragent"))
+        for useragent, freq in list:
+            if freq > minimum:
+                file.write("{:<8} {:<15}\n".format(freq, useragent))
 
-        count = 0
-        total = len(files)
-        for file in files:
-            path_to_file = os.path.join(root, file)
-            read_from_file(path_to_file)
-
-            count += 1
-            one_string = "- Done reading with {0:0>2} of {1:0>2} ".format(count, total) + path_to_file
-            print(one_string)
-
-
-def read_from_file(file):
-    global all_ua_list
-    # Open log file in 'read' mode
-    with open(file, "r") as in_file:
-        # Loop over each log line
-        lines = in_file.readlines()
-        for line in lines:
-            useragent = find_text_between_strings(line, '"user_agent":"', '",')
-
-            all_ua_list.add(useragent)
-
-
-def find_text_between_strings(s, first, last):
-    try:
-        start = s.index(first) + len(first)
-        end = s.index(last, start)
-        return s[start:end]
-    except ValueError:
-        return ""
-
-
-def check_for_bots(all_ua_list):
-    global all_bots
-    global legit_list
-
-    for useragent in all_ua_list:
-        if is_bot(useragent[0]):
-            all_bots.append(useragent)
+    def done(self):
+        if self.output_file:
+            f = open(self.output_file, "w+")
+            self.write_stats(f)
+            self.write_bot_list(f, self.all_bots)
+            self.logger.info("Done writing.")
         else:
-            all_legit.append(useragent)
+            print()
+            self.print_stats()
+            print()
+            self.print_bot_list(self.all_bots)
+            print()
 
-
-# ============ START SCRIPT =============
-
-all_ua_list = BotCounter()
-all_bots = []
-all_legit = []
-
-for arg in sys.argv[1:]:
-    if os.path.isdir(arg):
-        walk_dir(arg)
-    elif os.path.isfile(arg):
-        read_from_file(arg)
-        print("Done reading single file " + arg)
-
-check_for_bots(all_ua_list.get_sorted_list_by_frequency())
-
-# ============ PRINT STATS =============
-
-# print_bot_list(all_bots)
-# print_bot_list(all_legit)
-
-# ============ WRITE STATS =============
-
-f = open("loganalysis.txt", "w+")
-write_stats(f)
-write_bot_list(f, all_bots, title="Bot List", minimum=500)
-# write_bot_list(f, all_legit, title="Legit List", minimum=1000)
+        self.logger.info("Done with analysis.")
+        print()

@@ -15,3 +15,6 @@ class BotCounter:
 
     def get_sorted_list_by_frequency(self):
         return list(reversed(sorted(self.bots.items(), key=operator.itemgetter(1))))
+
+    def get_total_amount_of_requests(self):
+        return sum(self.bots.values())
